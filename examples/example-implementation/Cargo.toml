@@ -1,0 +1,36 @@
+[package]
+name = "my-firmware"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[package.metadata.myrmic]
+firmware = "esp32"
+
+# Link-time optimization is required here, not merely an optimization. On the
+# BLE + PSRAM chips (C5/C61) the firmware otherwise boots into a watchdog reset
+# loop: the esp-mmu routine that maps the AOT flash region runs with the flash
+# cache disabled, and without cross-crate inlining some of its callees remain in
+# XIP flash, which cannot be fetched during that window. `thin` inlines them
+# while keeping build times reasonable. C6 does not need it, but it is harmless.
+[profile.release]
+lto = "thin"
+
+[features]
+default = ["esp32c6"]
+
+# Target SoC. A firmware crate declares its own chip feature and forwards it:
+# `esp_firmware::board!` and `esp_firmware_build::configure()` both read the
+# chip from the crate that invokes them.
+esp32c5  = ["esp-firmware/esp32c5", "ble"]
+esp32c6  = ["esp-firmware/esp32c6"]
+esp32c61 = ["esp-firmware/esp32c61", "ble"]
+
+ble = ["esp-firmware/ble"]
+
+[dependencies]
+esp-firmware = { git = "https://github.com/peeriot/myrmic.git", rev = "0b98a092" }
+serde = { version = "1.0.229", default-features = false, features = ["derive", "alloc"] }
+
+[build-dependencies]
+esp-firmware-build = { git = "https://github.com/peeriot/myrmic.git", rev = "0b98a092" }
